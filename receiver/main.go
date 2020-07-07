@@ -3,20 +3,31 @@ package main
 import (
 	"bytes"
 	"github.com/sirupsen/logrus"
+	"io/ioutil"
 	"net"
 )
 
 func main() {
-	raddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:4000")
+	addr, err := net.ResolveUDPAddr("udp", "0.0.0.0:4000")
 	if err != nil {
 		logrus.Error("ResolveUDPAddr", err)
 	}
-	listener, err := net.ListenUDP("udp", raddr)
+	logrus.Info("Listening")
+	listen(addr)
+}
 
-	b := bytes.NewBuffer(make([]byte, 5))
-	_, err = listener.Read(b.Bytes())
-	if err != nil {
-		logrus.Error("ListenUDP", err)
+func listen(addr *net.UDPAddr) {
+
+	listener, err := net.ListenUDP("udp", addr)
+	b := bytes.NewBuffer(make([]byte, 64))
+	for {
+		_, err = listener.Read(b.Bytes())
+		if err != nil {
+			logrus.Error("ListenUDP", err)
+		}
+		err := ioutil.WriteFile("output/test.txt", b.Bytes(), 0644)
+		if err != nil {
+			logrus.Error(err)
+		}
 	}
-	logrus.Info(b.String())
 }
