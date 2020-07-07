@@ -12,7 +12,7 @@ func main() {
 	if err != nil {
 		logrus.Error("ResolveUDPAddr", err)
 	}
-	logrus.Info("Listening")
+	logrus.Info("listening")
 	listen(addr)
 }
 
@@ -29,5 +29,6 @@ func listen(addr *net.UDPAddr) {
 		if err != nil {
 			logrus.Error(err)
 		}
+		logrus.Info("got file")
 	}
 }

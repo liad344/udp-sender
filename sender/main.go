@@ -33,6 +33,7 @@ func write(conn *net.UDPConn) {
 		if err != nil {
 			logrus.Error("", err)
 		}
+		logrus.Info("sent ", file.Name())
 	}
 
 }
