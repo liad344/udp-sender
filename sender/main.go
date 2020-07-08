@@ -1,39 +1,39 @@
 package main
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"net"
+	"os"
 )
 
 func main() {
-	raddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:4000")
-	if err != nil {
-		logrus.Error("ResolveUDPAddr ", err)
+	udpConns := make([]*net.UDPConn, 8)
+	for i := 0; i < 8; i++ {
+		raddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("0.0.0.0:400%d", i))
+		if err != nil {
+			logrus.Error("ResolveUDPAddr ", err)
+		}
+		logrus.Info("dailed ", raddr)
+		conn, err := net.DialUDP("udp", nil, raddr)
+		if err != nil {
+			logrus.Error("DialUDP", err)
+		}
+		udpConns[i] = conn
 	}
-	conn, err := net.DialUDP("udp", nil, raddr)
-	if err != nil {
-		logrus.Error("DialUDP", err)
-	}
-	write(conn)
+	sendFile(udpConns)
 
 }
 
-func write(conn *net.UDPConn) {
-	inputDir, err := ioutil.ReadDir("input")
+func sendFile(conn []*net.UDPConn) {
+	file, err := os.Open("test.txt")
 	if err != nil {
 		logrus.Error(err)
 	}
-	for _, file := range inputDir {
-		b, err := ioutil.ReadFile("input/" + file.Name())
-		if err != nil {
-			logrus.Error(err)
-		}
-		_, err = conn.Write(b)
-		if err != nil {
-			logrus.Error("", err)
-		}
-		logrus.Info("sent ", file.Name())
-	}
-
+	encode(file, conn)
+	//_, err = conn.Write(file)
+	//if err != nil {
+	//	logrus.Error("", err)
+	//}
+	//logrus.Info("sent ", )
 }
