@@ -10,7 +10,7 @@ import (
 )
 
 func decode(udp []*net.UDPConn) {
-	shards := make([]io.Reader, 8)
+	shards := make([]io.Reader, 2)
 	for i := range udp {
 		b := make([]byte, 512)
 		n, addr, err := udp[i].ReadFromUDP(b)
@@ -18,10 +18,11 @@ func decode(udp []*net.UDPConn) {
 		if err != nil {
 			logrus.Error(err)
 		}
-		shards[i] = bytes.NewReader(b)
+		logrus.Info(string(b[511]))
+		shards[i] = bytes.NewReader(bytes.Trim(b, string(b[511])))
 	}
 
-	enc, err := reedsolomon.NewStream(4, 4)
+	enc, err := reedsolomon.NewStream(1, 1)
 	if err != nil {
 		logrus.Error("Could not create encoder ", err)
 	}
@@ -31,7 +32,7 @@ func decode(udp []*net.UDPConn) {
 		logrus.Info("Could not verify shards ", err)
 	}
 	if !ok {
-		logrus.Info("Shards lost ", err)
+		logrus.Info("Shards lost ", ok)
 		out := make([]io.Writer, len(shards))
 		err := enc.Reconstruct(shards, out)
 		if err != nil {
@@ -50,6 +51,7 @@ func join(enc reedsolomon.StreamEncoder, shards []io.Reader) {
 	if err != nil {
 		logrus.Error("could not create file ", err)
 	}
+	logrus.Info(len(shards))
 	err = enc.Join(f, shards, 318)
 	if err != nil {
 		logrus.Error("Could not join shards ", err)

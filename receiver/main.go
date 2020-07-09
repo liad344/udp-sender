@@ -11,8 +11,8 @@ func main() {
 }
 
 func listen() {
-	listeners := make([]*net.UDPConn, 8)
-	for i := 0; i < 8; i++ {
+	listeners := make([]*net.UDPConn, 2)
+	for i := 0; i < 2; i++ {
 		addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("0.0.0.0:400%d", i))
 		if err != nil {
 			logrus.Error("ResolveUDPAddr", err)

@@ -1,48 +1,52 @@
 package main
 
 import (
+	"bytes"
 	"github.com/klauspost/reedsolomon"
-	"github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 	"io"
 	"net"
 	"os"
 )
 
-func encode(file *os.File, udpConnOUT []*net.UDPConn) {
-	enc, err := reedsolomon.NewStream(4, 4)
+func encode(file *os.File, udpConns []*net.UDPConn) error {
+	enc, err := reedsolomon.NewStream(1, 1)
 	if err != nil {
-		logrus.Error("Could not create encoder ", err)
+		return err
+	}
+	dataShardsMW := make([]io.Writer, 1)
+	dataShardsBuff := make([]*bytes.Buffer, 1)
+	dataShards := make([]io.Writer, 1)
+	parityShards := make([]io.Writer, 1) //Parity shards will be written to -> udpConn
+
+	for i := range dataShardsMW {
+		dataShardsBuff[i] = bytes.NewBuffer(make([]byte, 64))
+		dataShards[i] = udpConns[i]
+		parityShards[i] = udpConns[1+i]
+		dataShardsMW[i] = io.MultiWriter(dataShards[i], dataShardsBuff[i])
+	}
+	err = enc.Split(file, dataShardsMW, 318)
+	if err != nil {
+		return errors.WithMessage(err, "Could not split ")
 	}
 
-	data := make([]io.Writer, 4)
-	for i := range data {
-		data[i] = udpConnOUT[i]
+	parityReader := make([]io.Reader, 1)
+	for i := range dataShardsBuff {
+		parityReader[i] = dataShardsBuff[i]
 	}
-	err = enc.Split(file, data, 318)
+	err = enc.Encode(parityReader, parityShards)
 	if err != nil {
-		logrus.Error("Could not split ", err)
+		return errors.WithMessage(err, "Could not encode parity")
 	}
-	parity := make([]io.Writer, 4)
-	for i := range parity {
-		parity[i] = udpConnOUT[1+i]
-	}
-	input := make([]io.Reader, 4)
-	for i := range data {
-		file, err := os.Open("test.txt")
+	return closeUDPConnection(udpConns)
+}
+
+func closeUDPConnection(out []*net.UDPConn) error {
+	for i := range out {
+		err := out[i].Close()
 		if err != nil {
-			logrus.Error(err)
-		}
-		input[i] = file
-	}
-	err = enc.Encode(input, parity)
-	if err != nil {
-		logrus.Error("Could not encode parity ", err)
-	}
-	for i := range udpConnOUT {
-		err = udpConnOUT[i].Close()
-		if err != nil {
-			logrus.Error("could not close connection ", err)
+			return errors.WithMessage(err, "Could not close connectio")
 		}
 	}
-	logrus.Info("sent")
+	return nil
 }
